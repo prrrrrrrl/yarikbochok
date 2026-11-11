@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ярослав Мудрый — интеллект-карта</title>
+<style>
+:root{--bg:#1a1424;--dot:#3a2f4d;--node:#a5a8f5;--edge:#f0a6e8;--ink:#14123a;--line:#8c86a8}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);font-family:"Segoe UI",Roboto,Arial,sans-serif}
+#view{position:absolute;inset:0;cursor:grab;background-image:radial-gradient(var(--dot) 1px,transparent 1px);background-size:24px 24px}
+#view.drag{cursor:grabbing}
+#world{position:absolute;left:0;top:0;width:1920px;height:1600px;transform-origin:0 0}
+svg{position:absolute;left:0;top:0;width:1920px;height:1600px;pointer-events:none}
+svg path{fill:none;stroke:var(--line);stroke-width:1.6}
+.n{position:absolute;background:var(--node);color:var(--ink);border:2px solid var(--edge);border-radius:14px;padding:9px 10px;text-align:center;font-size:12.5px;line-height:1.35;box-shadow:0 4px 14px #0006}
+.n.c{border-radius:22px;font-weight:700;font-size:13px;padding:10px}
+.n.m{font-weight:700;font-size:15px}
+.n.root{font-size:16px;font-weight:700;padding:14px}
+.fr{display:block;margin:0 auto 8px;border:2px dashed #5b4fd6;border-radius:8px;padding:3px;cursor:pointer;background:#ffffff40;overflow:hidden}
+.fr img{display:block;width:100%;height:100%;object-fit:cover;border-radius:5px}
+.fr .ph{display:none;height:100%;align-items:center;justify-content:center;font-size:11px;color:#3a35a0;padding:8px}
+.fr.auto img{height:auto;object-fit:contain}
+.fr.auto.empty{height:200px}
+.fr.empty img{display:none}.fr.empty .ph{display:flex}
+#bar{position:fixed;left:14px;bottom:14px;display:flex;gap:8px;align-items:center;z-index:5}
+#bar button,#bar span{background:#2c2440;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-size:14px}
+#bar button{cursor:pointer}#bar button:hover{background:#3d3258}
+#t{position:fixed;left:14px;top:14px;background:#2c2440;color:#fff;border-radius:10px;padding:10px 16px;font-weight:700;z-index:5}
+</style>
+</head>
+<body>
+<div id="t">Интеллект-карта</div>
+<div id="view"><div id="world"><svg id="s"></svg></div></div>
+<div id="bar"><button id="zo">−</button><span id="zl">70%</span><button id="zi">+</button><button id="fit">⤢</button><span>Нажмите на пунктирную рамку, чтобы добавить или заменить картинку</span></div>
+<input type="file" id="file" accept="image/*" hidden>
+<script>
+// Картинка = [список файлов Wikimedia Commons (пробуются по очереди), высота]
+const U="https://commons.wikimedia.org/wiki/Special:FilePath/";
+const PORTRAIT=[["Yaroslav_the_Wise.jpg"],0];
+const PORTRAIT2=[["Yaroslav_the_Wise.jpg"],130];
+const SOF=[["Kyjiv_sofienkathedrale.jpg","Cathedral_of_St._Sophia_03.jpg","St._Sophia_-_Google_Art_Project.jpg"],130];
+const INT=[["Interior_of_Saint_Sophia_Cathedral_in_Kyiv_Ukraine_in_August_2019.jpg","Sophia_iznutri.jpg"],130];
+const GATE=[["Golden_Gate_Kiev_2018_G1.jpg","Kiev_gate_2001_07_09.jpg"],130];
+const SARC=[["Sarcophagus_of_Yaroslav_the_Wise.jpg"],130];
+const WAR=[["Boleslaw_Chrobry_with_Swietopelk_near_The_Golden_Gate_in_Kyiv_MNK_ND_11610.jpg"],130];
+
+const ROOT=["⚔️👑 Ярослав Мудрый (ок. 978–1054)",PORTRAIT];
+const LEFT=[
+["🏹 Печенеги",[
+ ["1036 г. — разгром печенегов под Киевом; на месте битвы заложен Софийский собор",SOF],
+ ["Набеги печенегов на Русь прекратились, степная угроза была устранена"]]],
+["🛡️ Византия и Европа",[
+ ["1043 г. — поход сына Владимира на Константинополь; мир заключён в 1046 г."],
+ ["💍 Династические браки: дочери стали королевами Норвегии, Франции и Венгрии, отсюда прозвище «тесть Европы»"]]],
+["🌲 Соседи",[
+ ["1030 г. — поход на чудь, основан город Юрьев (современный Тарту)"],
+ ["1031 г. — поход на Польшу, возвращены Червенские города"]]]
+];
+const RIGHT=[
+["⚔️ Борьба за власть",[
+ ["1015 г. — после смерти Владимира Святополк убил братьев Бориса и Глеба; Ярослав выступил против него"],
+ ["1018 г. — Святополк с польским войском Болеслава занял Киев; Ярослав ушёл в Новгород",WAR],
+ ["1019 г. — окончательная победа над Святополком; с 1036 г. — единовластный правитель"]]],
+["📜 Закон",[
+ ["«Русская Правда» — первый свод законов Руси; заменял кровную месть денежными штрафами"],
+ ["Новгородцам дал привилегии за помощь в борьбе за власть"]]],
+["🏰 Строительство",[
+ ["1037 г. — заложены Золотые ворота — главный въезд в Киев",GATE],
+ ["1037 г. — заложен Софийский собор в Киеве; позже Софии в Новгороде и Полоцке",SOF]]],
+["⛪ Церковь и культура",[
+ ["1051 г. — первым митрополитом из русских поставлен Илларион",INT],
+ ["Основан Киево-Печерский монастырь; открыта школа, переписывались книги"]]],
+["🪜 Наследие",[
+ ["1054 г. — завещал сыновьям жить в мире и разделил между ними Русь по старшинству"],
+ ["После смерти Ярослава начались княжеские усобицы"]]]
+];
+const BOT=[
+["👨‍👩‍👧 Семья",[
+ ["💍 Жена — Ингигерда (Ирина), дочь шведского короля Олафа (брак 1019 г.)"],
+ ["👦 Сыновья: Владимир, Изяслав, Святослав, Всеволод, Вячеслав, Игорь и др."],
+ ["👧 Дочери Елизавета, Анна и Анастасия стали королевами Европы"]]],
+["💗 Личная жизнь",[
+ ["Родился ок. 978 г., сын Владимира Святославича и Рогнеды Полоцкой; в детстве получил княжение в Ростове",PORTRAIT2],
+ ["🪦 Умер 20 февраля 1054 г. в Вышгороде; похоронен в Софийском соборе Киева",SARC]]],
+["🎭 Характер",[
+ ["📚 Книголюб: «прилежал к книгам» и покровительствовал переводам"],
+ ["🧐 Мудрый, дальновидный правитель и дипломат"],
+ ["🛡️ Смелый воин, в юности прославился в походах; хромал из-за повреждённой ноги"],
+ ["🙏 Глубоко религиозный человек, продолжил дело крещения Руси"]]]
+];
+
+const world=document.getElementById("world"),svg=document.getElementById("s"),file=document.getElementById("file");
+let H=1600;const edges=[];let target=null,moved=false;
+function mk(html,img,cls,x,w){
+  const d=document.createElement("div");d.className="n "+cls;d.style.width=w+"px";d.style.left=x+"px";
+  let h="";
+  if(img){h=`<div class="fr${img[1]?"":" auto"}"${img[1]?` style="height:${img[1]}px"`:""}><img alt=""><div class="ph">🖼️ Нажмите, чтобы добавить картинку</div></div>`}
+  d.innerHTML=h+html;world.appendChild(d);
+  if(img){const f=d.querySelector(".fr"),i=f.querySelector("img");let k=0;const urls=[];img[0].forEach(n=>{urls.push(U+n+(img[1]?"?width=400":""),U+n)});
+    const next=()=>{if(k<urls.length)i.src=urls[k++];else f.classList.add("empty")};
+    i.onerror=next;next();
+    f.onclick=()=>{if(!moved){target=f;file.click()}}}
+  return d}
+file.onchange=()=>{const f=file.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{const i=target.querySelector("img");i.onerror=null;i.src=r.result;target.classList.remove("empty")};r.readAsDataURL(f);file.value=""};
+
+function side(list,catX,catW,leafX,leafW,dir,y0){
+  // возвращает {cats:[...], bottom}
+  let y=y0;const out=[];
+  list.forEach(([ch,leaves])=>{
+    const cat=mk(ch,null,"c",catX,catW);
+    const ls=leaves.map(l=>mk(l[0],l[1],"",leafX,leafW));
+    const colH=ls.reduce((a,e)=>a+e.offsetHeight,0)+14*(ls.length-1);
+    const rangeH=Math.max(colH,cat.offsetHeight);
+    let ly=y+(rangeH-colH)/2;ls.forEach(e=>{e.style.top=ly+"px";ly+=e.offsetHeight+14});
+    cat.style.top=(y+rangeH/2-cat.offsetHeight/2)+"px";
+    ls.forEach(e=>edges.push([cat,e,dir]));
+    out.push(cat);y+=rangeH+34});
+  return{cats:out,top:y0,bottom:y-34}}
+function shift(s,dy){s.cats.forEach(c=>c.style.top=(c.offsetTop+dy)+"px");
+  document.querySelectorAll(".n").forEach(()=>{});}
+
+function build(){
+const L=side(LEFT,300,150,20,240,"l",60);
+const R=side(RIGHT,1450,170,1650,240,"r",60);
+// выровнять по центру: сдвиг каждой стороны вместе с её листьями
+function moveSide(dir,dy){edges.filter(e=>e[2]==dir).forEach(e=>{e[1].style.top=(e[1].offsetTop+dy)+"px"})}
+const hu=Math.max(L.bottom,R.bottom);
+let dL=(hu-L.bottom)/2,dR=(hu-R.bottom)/2;
+moveSide("l",dL);L.cats.forEach(c=>c.style.top=(c.offsetTop+dL)+"px");
+moveSide("r",dR);R.cats.forEach(c=>c.style.top=(c.offsetTop+dR)+"px");
+const cy=60+hu/2;
+const root=mk(ROOT[0],ROOT[1],"root",760,400);root.style.top=(cy-root.offsetHeight/2)+"px";
+const ext=mk("🌍 Внешняя политика",null,"m",520,150);ext.style.top=(cy-ext.offsetHeight/2)+"px";
+const int=mk("🏛️ Внутренняя политика",null,"m",1250,150);int.style.top=(cy-int.offsetHeight/2)+"px";
+edges.push([root,ext,"l"],[root,int,"r"]);
+L.cats.forEach(c=>edges.push([ext,c,"l"]));R.cats.forEach(c=>edges.push([int,c,"r"]));
+// низ
+const pTop=Math.max(60+hu,root.offsetTop+root.offsetHeight)+40;
+const pe=mk("🧠 Личность",null,"m",885,150);pe.style.top=pTop+"px";edges.push([root,pe,"b"]);
+const subTop=pTop+pe.offsetHeight+50;let bottom=subTop;
+const xs=[540,885,1230],ws=[260,240,260];
+BOT.forEach(([ch,leaves],i)=>{
+  const cx=xs[i]+ (i==1?0:0);
+  const cat=mk(ch,null,"c",i==1?885:(i==0?580:1190),150);cat.style.top=subTop+"px";edges.push([pe,cat,"b"]);
+  let y=subTop+cat.offsetHeight+30;
+  leaves.forEach(l=>{const e=mk(l[0],l[1],"",i==1?830:(i==0?525:1135),i==1?240:250);e.style.top=y+"px";edges.push([cat,e,"b"]);y+=e.offsetHeight+14});
+  bottom=Math.max(bottom,y)});
+H=bottom+40;world.style.height=H+"px";svg.style.height=H+"px";
+}
+
+function box(e){return{x:e.offsetLeft,y:e.offsetTop,w:e.offsetWidth,h:e.offsetHeight}}
+function draw(){let s="";
+  edges.forEach(([pa,ch,side])=>{const a=box(pa),b=box(ch);let d;
+    if(side=="l"){const x1=a.x,y1=a.y+a.h/2,x2=b.x+b.w,y2=b.y+b.h/2,m=(x1+x2)/2;d=`M${x1} ${y1}H${m}V${y2}H${x2}`}
+    else if(side=="r"){const x1=a.x+a.w,y1=a.y+a.h/2,x2=b.x,y2=b.y+b.h/2,m=(x1+x2)/2;d=`M${x1} ${y1}H${m}V${y2}H${x2}`}
+    else{const x1=a.x+a.w/2,y1=a.y+a.h,x2=b.x+b.w/2,y2=b.y;
+      if(pa.classList.contains("c")){d=`M${x1} ${y1}V${y2}`}else{const m=(y1+y2)/2;d=`M${x1} ${y1}V${m}H${x2}V${y2}`}}
+    s+=`<path d="${d}"/>`});
+  svg.innerHTML=s}
+// масштаб и перемещение
+const view=document.getElementById("view");let sc=.7,tx=0,ty=0;
+function apply(){world.style.transform=`translate(${tx}px,${ty}px) scale(${sc})`;document.getElementById("zl").textContent=Math.round(sc*100)+"%"}
+function fit(){sc=Math.min(innerWidth/1960,innerHeight/(H+20));tx=(innerWidth-1920*sc)/2;ty=(innerHeight-H*sc)/2;apply()}
+function zoom(k,cx=innerWidth/2,cy=innerHeight/2){const n=Math.max(.2,Math.min(2,sc*k));tx=cx-(cx-tx)*n/sc;ty=cy-(cy-ty)*n/sc;sc=n;apply()}
+zi.onclick=()=>zoom(1.2);zo.onclick=()=>zoom(1/1.2);document.getElementById("fit").onclick=fit;
+view.addEventListener("wheel",e=>{e.preventDefault();zoom(e.deltaY<0?1.1:1/1.1,e.clientX,e.clientY)},{passive:false});
+let sx,sy,down=false;
+view.addEventListener("pointerdown",e=>{down=true;moved=false;sx=e.clientX-tx;sy=e.clientY-ty});
+addEventListener("pointermove",e=>{if(!down)return;if(Math.abs(e.clientX-sx-tx)+Math.abs(e.clientY-sy-ty)>4){moved=true;view.classList.add("drag")}
+  if(moved){tx=e.clientX-sx;ty=e.clientY-sy;apply()}});
+addEventListener("pointerup",()=>{down=false;view.classList.remove("drag");setTimeout(()=>moved=false,0)});
+addEventListener("resize",fit);
+// сначала узнаём пропорции оригинального портрета, чтобы рамка точно ему соответствовала
+(function(){const urls=[];PORTRAIT[0].forEach(n=>urls.push(U+n+"?width=400",U+n));let k=0;
+  const go=()=>{if(k>=urls.length){PORTRAIT[1]=200;done();return}
+    const im=new Image();im.onload=()=>{PORTRAIT[1]=Math.round(im.naturalHeight/im.naturalWidth*358)+10;done()};im.onerror=go;im.src=urls[k++]};
+  function done(){build();draw();fit()}
+  go()})();
+</script>
+</body>
+</html>
